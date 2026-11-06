@@ -1,7 +1,4 @@
-.venv/
-__pycache__/
-.pytest_cache/
-.ruff_cache/
+/reel-to-tandoor
+/build-shortcut
+*.shortcut
 .env
-*.egg-info/
-dist/

@@ -11,9 +11,10 @@ as well.
 ## How it works
 
 1. The iOS Shortcut sends the reel link to `POST /save` with the person's API key.
-2. The service checks the link is an Instagram (or TikTok) post, then uses `yt-dlp` to download its
+2. The service checks the link is an Instagram (or TikTok) post, then runs `yt-dlp` to download its
    audio track (about 300 KB for a 40 s reel), caption and cover image. No Instagram login is needed.
-3. `faster-whisper` (`small` model, CPU, int8) transcribes the audio. A 40 s reel takes about 6 s.
+3. `ffmpeg` decodes the audio and [whisper.cpp](https://github.com/ggml-org/whisper.cpp) (`small`
+   model, q8_0, CPU) transcribes it, skipping music and silence with Silero VAD.
 4. The caption and transcript go to Tandoor's own AI import (`/api/ai-import/`), using the AI
    provider configured in Tandoor.
 5. The result is saved with `POST /api/recipe/` in that person's Tandoor account, with the reel as
@@ -59,9 +60,14 @@ All settings are environment variables.
 | `ALLOW_TIKTOK` | `true` | Also accept TikTok links |
 | `COOKIES_FILE` | unset | Netscape cookies file for yt-dlp, in case Instagram starts blocking anonymous downloads |
 | `MAX_DURATION_SECONDS` | `600` | Longer videos are refused |
-| `WHISPER_MODEL` | `small` (`/models/whisper` in the image) | Model name or path. The image ships `small` so it needs no internet at start-up |
+| `MAX_DOWNLOAD_MB` | `100` | Bigger downloads are refused |
+| `WHISPER_MODEL` | `/models/ggml-small-q8_0.bin` | Path to a whisper.cpp ggml model. The image ships this one |
+| `WHISPER_VAD_MODEL` | `/models/ggml-silero-v6.2.0.bin` in the image | Silero VAD model; leave empty to transcribe everything |
 | `WHISPER_CPU_THREADS` | `4` | More threads made it slower on big.LITTLE arm64 boards |
-| `WHISPER_BEAM_SIZE` | `5` | `1` is about 30% faster for much the same transcript |
+| `WHISPER_BEAM_SIZE` | `5` | `1` decodes greedily: about 30% faster, and it gave the same transcript for the test reel |
+| `YTDLP_PATH` | `yt-dlp` | `/opt/yt-dlp/yt-dlp` in the image |
+| `FFMPEG_PATH` | `ffmpeg` | |
+| `LISTEN_ADDR` | `:8080` | |
 
 API keys are compared in constant time. Make them long and random:
 
@@ -87,7 +93,9 @@ The token decides whose account the recipe lands in, so each person needs their 
 
 The image is `ghcr.io/1solon/reel-to-tandoor` (linux/amd64 and linux/arm64), built by GitHub
 Actions on every push to `main`. It listens on port 8080 as user 1000 and works with a read-only
-root filesystem as long as `/tmp` is writable.
+root filesystem as long as `/tmp` is writable. Besides the Go binary it holds whisper.cpp (linked
+in), a static ffmpeg, and yt-dlp's standalone build, which bundles its own Python: nothing else
+keeps up with Instagram's changes.
 
 ```sh
 docker run --rm -p 8080:8080 --read-only --tmpfs /tmp \
@@ -99,20 +107,37 @@ curl -X POST localhost:8080/save -H 'X-API-Key: my-long-random-key' \
   -H 'Content-Type: application/json' -d '{"url": "https://www.instagram.com/reel/DfXD-34Bf40/"}'
 ```
 
-Give it about 1.5 GB of memory. Requests run one transcription at a time. A 40 s reel takes 15 to
-20 seconds in total on a modern x86 CPU (the transcription is about 7 s of that), and about 50
-seconds on an RK3588-class arm64 board (where transcription takes 38 s).
+Give it about 1 GB of memory (it used 490 MB transcribing a 40 s reel). Requests run one
+transcription at a time. Measured with the 40 s test reel:
+
+| CPU | Transcription (beam 5 / greedy) | Whole save (beam 5 / greedy) |
+| --- | --- | --- |
+| Ryzen 9 7940HS (x86-64) | 10.3 s / 7.5 s | 19.5 s / 16.6 s |
+| RK3588-class (arm64) | 22.1 s / 15.1 s | 32.4 s / 24.9 s |
 
 ### Development
 
+The service links whisper.cpp through cgo, so building it needs whisper.cpp's static libraries.
+The Dockerfile's `test` stage builds them and runs gofmt, `go vet` and the tests:
+
 ```sh
-uv sync
-uv run pytest
-uv run ruff check . && uv run ruff format --check .
-TANDOOR_URL=https://recipes.example.com REEL_USERS='{...}' uv run reel-to-tandoor
+docker build --target test .
 ```
 
-Outside the image, the whisper model downloads from Hugging Face on first start.
+To work outside Docker, build whisper.cpp v1.9.5 (the version `go.mod` pins the bindings to) and
+point cgo at it:
+
+```sh
+git clone --depth 1 --branch v1.9.5 https://github.com/ggml-org/whisper.cpp /tmp/whisper.cpp
+cmake -S /tmp/whisper.cpp -B /tmp/whisper.cpp/build -DBUILD_SHARED_LIBS=OFF -DWHISPER_BUILD_EXAMPLES=OFF
+cmake --build /tmp/whisper.cpp/build -j
+export CGO_ENABLED=1 C_INCLUDE_PATH=/tmp/whisper.cpp/include:/tmp/whisper.cpp/ggml/include \
+  LIBRARY_PATH=/tmp/whisper.cpp/build/src:/tmp/whisper.cpp/build/ggml/src
+go test ./...
+```
+
+Running it locally also needs `yt-dlp`, `ffmpeg` and a ggml model from
+[ggerganov/whisper.cpp](https://huggingface.co/ggerganov/whisper.cpp) on Hugging Face.
 
 ## The iOS Shortcut
 
@@ -153,11 +178,11 @@ If the share sheet doesn't list it, scroll to the end of the app row, tap **Edit
 
 ### Importable Shortcut (needs a Mac)
 
-`shortcut/build_shortcut.py` writes the same Shortcut as a file. iOS only imports signed Shortcuts,
-so it has to be signed on a Mac first:
+`cmd/build-shortcut` writes the same Shortcut as a file. iOS only imports signed Shortcuts, so it
+has to be signed on a Mac first:
 
 ```sh
-uv run python shortcut/build_shortcut.py --url https://reel-to-tandoor.example.com --api-key KEY
+go run ./cmd/build-shortcut -url https://reel-to-tandoor.example.com -api-key KEY
 shortcuts sign --mode anyone --input "Save to Tandoor.unsigned.shortcut" --output "Save to Tandoor.shortcut"
 ```
 
