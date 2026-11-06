@@ -1,0 +1,113 @@
+{
+  "recipe": {
+    "steps": [
+      {
+        "instruction": "Soak two cups of red lentils overnight.",
+        "ingredients": [
+          {
+            "amount": 2.0,
+            "food": {
+              "name": "red lentils"
+            },
+            "unit": {
+              "name": "cups"
+            },
+            "note": "",
+            "order": null,
+            "original_text": "2 cups red lentils"
+          },
+          {
+            "amount": 1.0,
+            "food": {
+              "name": "fresh water"
+            },
+            "unit": {
+              "name": "cup"
+            },
+            "note": "",
+            "order": null,
+            "original_text": "1 cup fresh water"
+          },
+          {
+            "amount": 1.0,
+            "food": {
+              "name": "baking powder"
+            },
+            "unit": {
+              "name": "teaspoon"
+            },
+            "note": "",
+            "order": null,
+            "original_text": "1 teaspoon baking powder"
+          },
+          {
+            "amount": 1.0,
+            "food": {
+              "name": "salt"
+            },
+            "unit": {
+              "name": "pinch"
+            },
+            "note": "",
+            "order": null,
+            "original_text": "1 pinch salt"
+          },
+          {
+            "amount": 0.0,
+            "food": {
+              "name": "seeds"
+            },
+            "unit": null,
+            "note": "for topping",
+            "order": null,
+            "original_text": "seeds (for topping)"
+          }
+        ],
+        "show_ingredients_table": true
+      },
+      {
+        "instruction": "In the morning, drain them and blend them with one cup of fresh water, one teaspoon of baking powder and a pinch of salt until it's smooth like pancake batter.",
+        "ingredients": [],
+        "show_ingredients_table": true
+      },
+      {
+        "instruction": "Pour it into a lined loaf pan, sprinkle some seeds on top.",
+        "ingredients": [],
+        "show_ingredients_table": true
+      },
+      {
+        "instruction": "Bake at 350 for 45 minutes.",
+        "ingredients": [],
+        "show_ingredients_table": true
+      },
+      {
+        "instruction": "Let it cool before you cut it.",
+        "ingredients": [],
+        "show_ingredients_table": true
+      }
+    ],
+    "internal": true,
+    "source_url": "",
+    "name": "Flourless Lentil Bread",
+    "description": "This bread is made from lentils and water. No flour, no yeast, no kneading.",
+    "servings": null,
+    "servings_text": "None",
+    "working_time": 0,
+    "waiting_time": 0,
+    "image_url": "",
+    "keywords": [
+      {
+        "id": 1,
+        "label": "✨ AI",
+        "name": "✨ AI",
+        "import_keyword": true
+      }
+    ],
+    "properties": []
+  },
+  "recipe_id": null,
+  "images": [],
+  "error": false,
+  "msg": "",
+  "duplicates": []
+}
