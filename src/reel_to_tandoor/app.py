@@ -84,6 +84,7 @@ def create_app(settings: Settings | None = None, transcriber: Transcriber | None
         settings.whisper_model_dir,
         settings.whisper_cpu_threads,
         settings.whisper_compute_type,
+        settings.whisper_beam_size,
     )
 
     @asynccontextmanager

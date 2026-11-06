@@ -14,10 +14,11 @@ class Transcriber:
     Whisper already uses every thread it's given, so running two at once only makes both slower.
     """
 
-    def __init__(self, model: str, model_dir: str | None, cpu_threads: int, compute_type: str):
+    def __init__(self, model: str, model_dir: str | None, cpu_threads: int, compute_type: str, beam_size: int = 5):
         self._args = {"model_size_or_path": model, "download_root": model_dir}
         self._cpu_threads = cpu_threads
         self._compute_type = compute_type
+        self._beam_size = beam_size
         self._model = None
         self._lock = threading.Lock()
 
@@ -36,7 +37,7 @@ class Transcriber:
             return ""
         with self._lock:
             model = self.load()
-            segments, info = model.transcribe(audio, vad_filter=True)
+            segments, info = model.transcribe(audio, vad_filter=True, beam_size=self._beam_size)
             text = " ".join(segment.text.strip() for segment in segments)
         log.info("Transcribed %.0f s of %s audio into %d characters", info.duration, info.language, len(text))
         return text.strip()

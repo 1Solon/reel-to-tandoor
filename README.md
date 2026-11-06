@@ -60,7 +60,8 @@ All settings are environment variables.
 | `COOKIES_FILE` | unset | Netscape cookies file for yt-dlp, in case Instagram starts blocking anonymous downloads |
 | `MAX_DURATION_SECONDS` | `600` | Longer videos are refused |
 | `WHISPER_MODEL` | `small` (`/models/whisper` in the image) | Model name or path. The image ships `small` so it needs no internet at start-up |
-| `WHISPER_CPU_THREADS` | `4` | |
+| `WHISPER_CPU_THREADS` | `4` | More threads made it slower on big.LITTLE arm64 boards |
+| `WHISPER_BEAM_SIZE` | `5` | `1` is about 30% faster for much the same transcript |
 
 API keys are compared in constant time. Make them long and random:
 
@@ -98,8 +99,9 @@ curl -X POST localhost:8080/save -H 'X-API-Key: my-long-random-key' \
   -H 'Content-Type: application/json' -d '{"url": "https://www.instagram.com/reel/DfXD-34Bf40/"}'
 ```
 
-Give it about 1.5 GB of memory. Requests run one transcription at a time and normally finish in
-15 to 20 seconds.
+Give it about 1.5 GB of memory. Requests run one transcription at a time. A 40 s reel takes 15 to
+20 seconds in total on a modern x86 CPU (the transcription is about 7 s of that), and about 50
+seconds on an RK3588-class arm64 board (where transcription takes 38 s).
 
 ### Development
 
