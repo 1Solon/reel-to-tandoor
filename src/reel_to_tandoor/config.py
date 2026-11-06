@@ -38,6 +38,8 @@ class Settings(BaseSettings):
     whisper_model_dir: str | None = None
     whisper_cpu_threads: int = 4
     whisper_compute_type: str = "int8"
+    # 1 (greedy) is ~30% faster on the cluster's arm64 nodes and gave the same transcript for the test reel.
+    whisper_beam_size: int = 5
 
     @cached_property
     def user_map(self) -> dict[str, User]:
