@@ -24,7 +24,7 @@ func TestDefaults(t *testing.T) {
 	if c.TandoorAIProviderID != 34 || c.TandoorTimeout != 120*time.Second || !c.AllowTikTok || len(c.Users) != 0 {
 		t.Errorf("got %+v", c)
 	}
-	if c.MaxDownloadBytes != 100<<20 || c.WhisperThreads != 4 || c.WhisperBeamSize != 1 {
+	if c.MaxDownloadBytes != 100<<20 || c.WhisperThreads != 4 || c.WhisperBeamSize != 5 {
 		t.Errorf("got %+v", c)
 	}
 }
@@ -34,7 +34,7 @@ func TestOverrides(t *testing.T) {
 		"TANDOOR_URL":        "https://recipes.example.com/",
 		"TANDOOR_PUBLIC_URL": "https://public.example.com/",
 		"ALLOW_TIKTOK":       "false",
-		"WHISPER_BEAM_SIZE":  "5",
+		"WHISPER_BEAM_SIZE":  "1",
 		"REEL_USERS":         `{"k1": {"name": "mum", "tandoor_token": "tda_1"}}`,
 	}))
 	if err != nil {
@@ -43,7 +43,7 @@ func TestOverrides(t *testing.T) {
 	if c.TandoorURL != "https://recipes.example.com" || c.TandoorPublicURL != "https://public.example.com" {
 		t.Errorf("urls = %q %q", c.TandoorURL, c.TandoorPublicURL)
 	}
-	if c.AllowTikTok || c.WhisperBeamSize != 5 || c.Users["k1"] != (User{Name: "mum", TandoorToken: "tda_1"}) {
+	if c.AllowTikTok || c.WhisperBeamSize != 1 || c.Users["k1"] != (User{Name: "mum", TandoorToken: "tda_1"}) {
 		t.Errorf("got %+v", c)
 	}
 }

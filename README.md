@@ -64,7 +64,7 @@ All settings are environment variables.
 | `WHISPER_MODEL` | `/models/ggml-small-q8_0.bin` | Path to a whisper.cpp ggml model. The image ships this one |
 | `WHISPER_VAD_MODEL` | `/models/ggml-silero-v6.2.0.bin` in the image | Silero VAD model; leave empty to transcribe everything |
 | `WHISPER_CPU_THREADS` | `4` | More threads made it slower on big.LITTLE arm64 boards |
-| `WHISPER_BEAM_SIZE` | `1` | `1` decodes greedily; more uses beam search, which is slower |
+| `WHISPER_BEAM_SIZE` | `5` | `1` decodes greedily: about 30% faster, and it gave the same transcript for the test reel |
 | `YTDLP_PATH` | `yt-dlp` | `/opt/yt-dlp/yt-dlp` in the image |
 | `FFMPEG_PATH` | `ffmpeg` | |
 | `LISTEN_ADDR` | `:8080` | |
@@ -107,9 +107,13 @@ curl -X POST localhost:8080/save -H 'X-API-Key: my-long-random-key' \
   -H 'Content-Type: application/json' -d '{"url": "https://www.instagram.com/reel/DfXD-34Bf40/"}'
 ```
 
-Give it about 1.5 GB of memory. Requests run one transcription at a time. A 40 s reel takes 15 to
-20 seconds in total on a modern x86 CPU (the transcription is about 7 s of that), and about 50
-seconds on an RK3588-class arm64 board (where transcription takes 38 s).
+Give it about 1 GB of memory (it used 490 MB transcribing a 40 s reel). Requests run one
+transcription at a time. Measured with the 40 s test reel:
+
+| CPU | Transcription (beam 5 / greedy) | Whole save (beam 5 / greedy) |
+| --- | --- | --- |
+| Ryzen 9 7940HS (x86-64) | 10.3 s / 7.5 s | 19.5 s / 16.6 s |
+| RK3588-class (arm64) | 22.1 s / 15.1 s | 32.4 s / 24.9 s |
 
 ### Development
 

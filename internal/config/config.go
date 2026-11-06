@@ -98,7 +98,7 @@ func Load(lookup func(string) (string, bool)) (Config, error) {
 		WhisperModel:        str("WHISPER_MODEL", "/models/ggml-small.bin"),
 		WhisperVADModel:     str("WHISPER_VAD_MODEL", ""),
 		WhisperThreads:      num("WHISPER_CPU_THREADS", 4),
-		WhisperBeamSize:     num("WHISPER_BEAM_SIZE", 1),
+		WhisperBeamSize:     num("WHISPER_BEAM_SIZE", 5),
 	}
 	c.TandoorPublicURL = strings.TrimRight(str("TANDOOR_PUBLIC_URL", c.TandoorURL), "/")
 
