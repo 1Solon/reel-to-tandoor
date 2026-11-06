@@ -70,7 +70,7 @@ openssl rand -hex 32
 ```
 
 ```powershell
--join ((1..32) | ForEach-Object { '{0:x2}' -f (Get-Random -Max 256) })
+-join ([Security.Cryptography.RandomNumberGenerator]::GetBytes(32) | ForEach-Object { $_.ToString('x2') })
 ```
 
 ### Getting a Tandoor token for someone
