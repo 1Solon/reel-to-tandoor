@@ -64,8 +64,12 @@ func newUUID() string {
 
 // build returns the Shortcut. With an empty apiKey, importing it asks for the key, so the file
 // can be shared without carrying anyone's secret.
-func build(serviceURL, apiKey string) dict {
-	key, request, message, link, group := newUUID(), newUUID(), newUUID(), newUUID(), newUUID()
+//
+// openIn picks where the saved recipe opens: "kitshn" rewrites the link to kitshn://, which the
+// Kitshn app opens when it's signed in to the same Tandoor; "web" opens it in Safari.
+func build(serviceURL, apiKey, openIn string) dict {
+	key, request, message, link, group, kitshn := newUUID(), newUUID(), newUUID(), newUUID(), newUUID(), newUUID()
+
 	questions := []any{}
 	if apiKey == "" {
 		questions = append(questions, dict{
@@ -76,6 +80,64 @@ func build(serviceURL, apiKey string) dict {
 			"Text":         "Paste your Save to Tandoor API key",
 		})
 	}
+
+	open := []any{action("openurl", dict{"WFInput": variable(link, "Recipe Link")})}
+	if openIn == "kitshn" {
+		// Kitshn opens kitshn://<tandoor host>/recipe/<id> (AppLinkHandler.kt in kitshn-app/kitshn).
+		open = []any{
+			action("text.replace", dict{
+				"UUID":                 kitshn,
+				"CustomOutputName":     "Kitshn Link",
+				"WFInput":              textWith(attachment(link, "Recipe Link")),
+				"WFReplaceTextFind":    "https://",
+				"WFReplaceTextReplace": "kitshn://",
+			}),
+			action("openurl", dict{"WFInput": variable(kitshn, "Kitshn Link")}),
+		}
+	}
+
+	actions := []any{
+		// The key lives in its own Text action because import questions fill in a whole parameter,
+		// and a Text action's text is the usual place to ask for one.
+		action("gettext", dict{"UUID": key, "CustomOutputName": "API Key", "WFTextActionText": text(apiKey)}),
+		action("downloadurl", dict{
+			"UUID":           request,
+			"WFURL":          strings.TrimRight(serviceURL, "/") + "/save",
+			"WFHTTPMethod":   "POST",
+			"ShowHeaders":    true,
+			"WFHTTPHeaders":  dictionary("X-API-Key", textWith(attachment(key, "API Key"))),
+			"WFHTTPBodyType": "JSON",
+			"WFJSONValues":   dictionary("url", textWith(dict{"Type": "ExtensionInput"})),
+		}),
+		action("getvalueforkey", dict{
+			"UUID": message, "CustomOutputName": "Message", "WFDictionaryKey": "message",
+			"WFInput": variable(request, "Contents of URL"),
+		}),
+		action("getvalueforkey", dict{
+			"UUID": link, "CustomOutputName": "Recipe Link", "WFDictionaryKey": "recipe_url",
+			"WFInput": variable(request, "Contents of URL"),
+		}),
+		action("conditional", dict{
+			"GroupingIdentifier": group, "WFControlFlowMode": 0,
+			"WFCondition": 100, // "has any value"
+			"WFInput":     dict{"Type": "Variable", "Variable": variable(link, "Recipe Link")},
+		}),
+		action("notification", dict{
+			"WFNotificationActionTitle": "Tandoor",
+			"WFNotificationActionBody":  textWith(attachment(message, "Message")),
+		}),
+	}
+	actions = append(actions, open...)
+	actions = append(actions,
+		action("conditional", dict{"GroupingIdentifier": group, "WFControlFlowMode": 1}),
+		action("alert", dict{
+			"WFAlertActionTitle":             "Couldn't save the recipe",
+			"WFAlertActionMessage":           textWith(attachment(message, "Message")),
+			"WFAlertActionCancelButtonShown": false,
+		}),
+		action("conditional", dict{"GroupingIdentifier": group, "WFControlFlowMode": 2}),
+	)
+
 	return dict{
 		"WFWorkflowClientVersion":              "2607.0.2",
 		"WFWorkflowMinimumClientVersion":       900,
@@ -85,58 +147,21 @@ func build(serviceURL, apiKey string) dict {
 		"WFWorkflowInputContentItemClasses":    []any{"WFURLContentItem", "WFStringContentItem"},
 		"WFWorkflowHasShortcutInputVariables":  true,
 		"WFWorkflowImportQuestions":            questions,
-		"WFWorkflowActions": []any{
-			// The key lives in its own Text action because import questions fill in a whole parameter,
-			// and a Text action's text is the usual place to ask for one.
-			action("gettext", dict{"UUID": key, "CustomOutputName": "API Key", "WFTextActionText": text(apiKey)}),
-			action("downloadurl", dict{
-				"UUID":           request,
-				"WFURL":          strings.TrimRight(serviceURL, "/") + "/save",
-				"WFHTTPMethod":   "POST",
-				"ShowHeaders":    true,
-				"WFHTTPHeaders":  dictionary("X-API-Key", textWith(attachment(key, "API Key"))),
-				"WFHTTPBodyType": "JSON",
-				"WFJSONValues":   dictionary("url", textWith(dict{"Type": "ExtensionInput"})),
-			}),
-			action("getvalueforkey", dict{
-				"UUID": message, "CustomOutputName": "Message", "WFDictionaryKey": "message",
-				"WFInput": variable(request, "Contents of URL"),
-			}),
-			action("getvalueforkey", dict{
-				"UUID": link, "CustomOutputName": "Recipe Link", "WFDictionaryKey": "recipe_url",
-				"WFInput": variable(request, "Contents of URL"),
-			}),
-			action("conditional", dict{
-				"GroupingIdentifier": group, "WFControlFlowMode": 0,
-				"WFCondition": 100, // "has any value"
-				"WFInput":     dict{"Type": "Variable", "Variable": variable(link, "Recipe Link")},
-			}),
-			action("notification", dict{
-				"WFNotificationActionTitle": "Tandoor",
-				"WFNotificationActionBody":  textWith(attachment(message, "Message")),
-			}),
-			action("openurl", dict{"WFInput": variable(link, "Recipe Link")}),
-			action("conditional", dict{"GroupingIdentifier": group, "WFControlFlowMode": 1}),
-			action("alert", dict{
-				"WFAlertActionTitle":             "Couldn't save the recipe",
-				"WFAlertActionMessage":           textWith(attachment(message, "Message")),
-				"WFAlertActionCancelButtonShown": false,
-			}),
-			action("conditional", dict{"GroupingIdentifier": group, "WFControlFlowMode": 2}),
-		},
+		"WFWorkflowActions":                    actions,
 	}
 }
 
 func main() {
 	serviceURL := flag.String("url", "", "base URL of the service, e.g. https://reel-to-tandoor.example.com (required)")
 	apiKey := flag.String("api-key", "", "embed this API key; leave empty to ask for it on import")
+	openIn := flag.String("open", "kitshn", `where the saved recipe opens: "kitshn" (the Kitshn app) or "web" (Safari)`)
 	out := flag.String("out", "Save to Tandoor.unsigned.shortcut", "file to write")
 	flag.Parse()
-	if *serviceURL == "" {
+	if *serviceURL == "" || (*openIn != "kitshn" && *openIn != "web") {
 		flag.Usage()
 		os.Exit(2)
 	}
-	data, err := marshalPlist(build(*serviceURL, *apiKey))
+	data, err := marshalPlist(build(*serviceURL, *apiKey, *openIn))
 	if err != nil {
 		log.Fatal(err)
 	}

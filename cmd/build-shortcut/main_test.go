@@ -7,7 +7,7 @@ import (
 )
 
 func TestShortcutIsWellFormedPlist(t *testing.T) {
-	data, err := marshalPlist(build("https://reel.example.com/", "key&<1>"))
+	data, err := marshalPlist(build("https://reel.example.com/", "key&<1>", "web"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -35,13 +35,16 @@ func TestShortcutIsWellFormedPlist(t *testing.T) {
 	if got := strings.Count(s, "<key>WFWorkflowActionIdentifier</key>"); got != 10 {
 		t.Errorf("%d actions, want 10", got)
 	}
+	if strings.Contains(s, "kitshn://") {
+		t.Error("the web variant shouldn't rewrite links for Kitshn")
+	}
 	if strings.Contains(s, "WFTextActionText</string>") {
 		t.Error("an embedded key shouldn't add an import question")
 	}
 }
 
 func TestSharedShortcutAsksForKey(t *testing.T) {
-	data, err := marshalPlist(build("https://reel.example.com", ""))
+	data, err := marshalPlist(build("https://reel.example.com", "", "kitshn"))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,6 +53,8 @@ func TestSharedShortcutAsksForKey(t *testing.T) {
 		"<string>WFTextActionText</string>",
 		"<string>Paste your Save to Tandoor API key</string>",
 		"<string>is.workflow.actions.gettext</string>",
+		"<string>is.workflow.actions.text.replace</string>",
+		"<string>kitshn://</string>",
 	} {
 		if !strings.Contains(s, want) {
 			t.Errorf("plist lacks %s", want)

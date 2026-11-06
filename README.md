@@ -164,8 +164,11 @@ address (for example `https://reel-to-tandoor.example.com`) and that person's AP
    the condition to **has any value**.
 7. Inside the **If** branch:
    - Add **Show Notification**. Tap its text and pick the first **Dictionary Value** (`message`).
-   - Add **Open URLs** and give it the second **Dictionary Value** (`recipe_url`). Leave this out
-     if you'd rather not jump to the recipe every time.
+   - To open the recipe in the **Kitshn** app: add **Replace Text**, set it to replace `https://`
+     with `kitshn://` in the second **Dictionary Value** (`recipe_url`), then add **Open URLs** with
+     the **Updated Text**. Kitshn must be signed in to the same Tandoor address.
+   - To open it in Safari instead: add **Open URLs** with the second **Dictionary Value**
+     (`recipe_url`). Leave both out if you'd rather not jump to the recipe every time.
 8. Inside the **Otherwise** branch, add **Show Alert** and set its message to the first
    **Dictionary Value** (`message`). Turn off **Show Cancel Button**.
 9. Tap **Done**.
@@ -185,6 +188,8 @@ to Shortcuts:
 **https://github.com/1Solon/reel-to-tandoor/raw/main/shortcut/Save-to-Tandoor.shortcut**
 
 While adding it, Shortcuts asks for **your Save to Tandoor API key**; paste the key you were given.
+After saving a recipe it opens it in the [Kitshn](https://kitshn.app) app, which has to be signed in to
+the same Tandoor address the service uses (`https://recipes.solonsstuff.com`).
 The link carries no key, so it's safe to pass around: it only points at
 `https://reel-to-tandoor.solonsstuff.com`, and each person supplies their own key.
 
@@ -201,7 +206,7 @@ head -c 4 shortcut/Save-to-Tandoor.shortcut   # should print AEA1
 
 On a Mac, `shortcuts sign --mode anyone --input in.shortcut --output out.shortcut` signs it locally
 instead. Passing `-api-key KEY` to the generator embeds a key and skips the question, for a private
-copy only.
+copy only, and `-open web` opens recipes in Safari instead of Kitshn.
 
 ## Troubleshooting
 
