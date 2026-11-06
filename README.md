@@ -141,7 +141,8 @@ Running it locally also needs `yt-dlp`, `ffmpeg` and a ggml model from
 
 ## The iOS Shortcut
 
-Build it on the iPhone that will use it. It takes about five minutes. You need the service's
+The quickest way is the [shareable link](#shareable-link) below. To build it by hand instead, do it
+on the iPhone that will use it. It takes about five minutes. You need the service's
 address (for example `https://reel-to-tandoor.example.com`) and that person's API key.
 
 1. Open the **Shortcuts** app, tap **+** to make a new shortcut, and name it **Save to Tandoor**.
@@ -176,18 +177,31 @@ permission to connect to the service; choose **Always Allow**.
 If the share sheet doesn't list it, scroll to the end of the app row, tap **Edit Actions**, and add
 **Save to Tandoor** to Favorites.
 
-### Importable Shortcut (needs a Mac)
+### Shareable link
 
-`cmd/build-shortcut` writes the same Shortcut as a file. iOS only imports signed Shortcuts, so it
-has to be signed on a Mac first:
+Open this link on the iPhone, in Safari, and tap **Allow**/**Download**, then open the file to add it
+to Shortcuts:
+
+**https://github.com/1Solon/reel-to-tandoor/raw/main/shortcut/Save-to-Tandoor.shortcut**
+
+While adding it, Shortcuts asks for **your Save to Tandoor API key**; paste the key you were given.
+The link carries no key, so it's safe to pass around: it only points at
+`https://reel-to-tandoor.solonsstuff.com`, and each person supplies their own key.
+
+The file is built by `cmd/build-shortcut` and signed with RoutineHub's free
+[HubSign](https://routinehub.co) service, since iOS only imports signed Shortcuts. To rebuild it
+after changing the generator or the service address:
 
 ```sh
-go run ./cmd/build-shortcut -url https://reel-to-tandoor.example.com -api-key KEY
-shortcuts sign --mode anyone --input "Save to Tandoor.unsigned.shortcut" --output "Save to Tandoor.shortcut"
+go run ./cmd/build-shortcut -url https://reel-to-tandoor.solonsstuff.com -out /tmp/save-to-tandoor.xml
+curl -sS -F "shortcutName=Save to Tandoor" -F "shortcut=@/tmp/save-to-tandoor.xml;type=application/xml" \
+  -o shortcut/Save-to-Tandoor.shortcut https://hubsign.routinehub.services/sign
+head -c 4 shortcut/Save-to-Tandoor.shortcut   # should print AEA1
 ```
 
-AirDrop the signed file to the phone. The generated file hasn't been tried on a device yet, so if
-it won't import, build the Shortcut by hand as above.
+On a Mac, `shortcuts sign --mode anyone --input in.shortcut --output out.shortcut` signs it locally
+instead. Passing `-api-key KEY` to the generator embeds a key and skips the question, for a private
+copy only.
 
 ## Troubleshooting
 

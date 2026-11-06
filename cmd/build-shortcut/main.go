@@ -1,11 +1,12 @@
 // Command build-shortcut writes an unsigned "Save to Tandoor" Shortcut file.
 //
-// iOS only imports signed Shortcuts, so sign the output on a Mac before sending it to a phone:
+// Without -api-key, importing the Shortcut asks for the key, so the file is safe to share.
+// iOS only imports signed Shortcuts, so sign the output before sending it to a phone, on a Mac:
 //
-//	go run ./cmd/build-shortcut -url https://reel-to-tandoor.example.com -api-key KEY
+//	go run ./cmd/build-shortcut -url https://reel-to-tandoor.example.com
 //	shortcuts sign --mode anyone --input "Save to Tandoor.unsigned.shortcut" --output "Save to Tandoor.shortcut"
 //
-// Without a Mac, build the Shortcut by hand from the README instead.
+// or with RoutineHub's signing service (see the README).
 package main
 
 import (
@@ -61,8 +62,20 @@ func newUUID() string {
 	return strings.ToUpper(fmt.Sprintf("%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:]))
 }
 
+// build returns the Shortcut. With an empty apiKey, importing it asks for the key, so the file
+// can be shared without carrying anyone's secret.
 func build(serviceURL, apiKey string) dict {
-	request, message, link, group := newUUID(), newUUID(), newUUID(), newUUID()
+	key, request, message, link, group := newUUID(), newUUID(), newUUID(), newUUID(), newUUID()
+	questions := []any{}
+	if apiKey == "" {
+		questions = append(questions, dict{
+			"ActionIndex":  0,
+			"Category":     "Parameter",
+			"DefaultValue": "",
+			"ParameterKey": "WFTextActionText",
+			"Text":         "Paste your Save to Tandoor API key",
+		})
+	}
 	return dict{
 		"WFWorkflowClientVersion":              "2607.0.2",
 		"WFWorkflowMinimumClientVersion":       900,
@@ -71,14 +84,17 @@ func build(serviceURL, apiKey string) dict {
 		"WFWorkflowTypes":                      []any{"ActionExtension"},
 		"WFWorkflowInputContentItemClasses":    []any{"WFURLContentItem", "WFStringContentItem"},
 		"WFWorkflowHasShortcutInputVariables":  true,
-		"WFWorkflowImportQuestions":            []any{},
+		"WFWorkflowImportQuestions":            questions,
 		"WFWorkflowActions": []any{
+			// The key lives in its own Text action because import questions fill in a whole parameter,
+			// and a Text action's text is the usual place to ask for one.
+			action("gettext", dict{"UUID": key, "CustomOutputName": "API Key", "WFTextActionText": text(apiKey)}),
 			action("downloadurl", dict{
 				"UUID":           request,
 				"WFURL":          strings.TrimRight(serviceURL, "/") + "/save",
 				"WFHTTPMethod":   "POST",
 				"ShowHeaders":    true,
-				"WFHTTPHeaders":  dictionary("X-API-Key", text(apiKey)),
+				"WFHTTPHeaders":  dictionary("X-API-Key", textWith(attachment(key, "API Key"))),
 				"WFHTTPBodyType": "JSON",
 				"WFJSONValues":   dictionary("url", textWith(dict{"Type": "ExtensionInput"})),
 			}),
@@ -113,7 +129,7 @@ func build(serviceURL, apiKey string) dict {
 
 func main() {
 	serviceURL := flag.String("url", "", "base URL of the service, e.g. https://reel-to-tandoor.example.com (required)")
-	apiKey := flag.String("api-key", "PASTE-YOUR-API-KEY", "the person's API key")
+	apiKey := flag.String("api-key", "", "embed this API key; leave empty to ask for it on import")
 	out := flag.String("out", "Save to Tandoor.unsigned.shortcut", "file to write")
 	flag.Parse()
 	if *serviceURL == "" {

@@ -32,8 +32,28 @@ func TestShortcutIsWellFormedPlist(t *testing.T) {
 			t.Errorf("plist lacks %s", want)
 		}
 	}
-	if got := strings.Count(s, "<key>WFWorkflowActionIdentifier</key>"); got != 9 {
-		t.Errorf("%d actions, want 9", got)
+	if got := strings.Count(s, "<key>WFWorkflowActionIdentifier</key>"); got != 10 {
+		t.Errorf("%d actions, want 10", got)
+	}
+	if strings.Contains(s, "WFTextActionText</string>") {
+		t.Error("an embedded key shouldn't add an import question")
+	}
+}
+
+func TestSharedShortcutAsksForKey(t *testing.T) {
+	data, err := marshalPlist(build("https://reel.example.com", ""))
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := string(data)
+	for _, want := range []string{
+		"<string>WFTextActionText</string>",
+		"<string>Paste your Save to Tandoor API key</string>",
+		"<string>is.workflow.actions.gettext</string>",
+	} {
+		if !strings.Contains(s, want) {
+			t.Errorf("plist lacks %s", want)
+		}
 	}
 }
 

@@ -1,4 +1,4 @@
 /reel-to-tandoor
 /build-shortcut
-*.shortcut
 .env
+*.unsigned.shortcut
